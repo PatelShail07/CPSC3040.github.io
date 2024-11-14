@@ -1,16 +1,49 @@
 <!DOCTYPE html>
 <html>
+<head>
+    <meta charset="UTF-8">
     <title>Dashboard - Milestone 3</title>
+    <script src="https://d3js.org/d3.v6.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .chart {
+            display: inline-block;
+            width: 32%;
+            vertical-align: top;
+            padding: 10px;
+            box-sizing: border-box;
+        }
+        #countyBarChart {
+            width: 35%;
+        }
+        svg {
+            width: 100%;
+            height: 650px;
+        }
+        .axis-label {
+            font-size: 12px;
+            fill: #333;
+        }
+    </style>
+</head>
 <body>
-    <h1>Our Dashboard</h1>
-    <svg id="vis1"></svg>
+    <h1>Dashboard - Milestone 3</h1>
+    <div class="chart" id="scatterPlot">
+        <h2>Student Counts: White vs Black</h2>
+    </div>
+    <div class="chart" id="countyBarChart">
+        <h2>County Distribution</h2>
+    </div>
+    <div class="chart" id="gradeBarChart">
+        <h2>Distribution By Grade</h2>
+    </div>
 
-    <svg id="vis2"></svg>
-
-    <svg id="vis3"></svg>
-
-    <!-- <script src="vis1script.js"></script> -->
-    <!-- <script src="vis2script.js"></script> -->
-    <!-- <script src="vis3script.js"></script> -->
+    <script src="script.js"></script>
 </body>
 </html>
