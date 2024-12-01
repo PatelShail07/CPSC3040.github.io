@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Dashboard - Milestone 3</title>
+    <title>White and Black Studnets Enrollment in Washington</title>
     <script src="https://d3js.org/d3.v6.min.js"></script>
     <style>
         body {
@@ -30,10 +30,50 @@
             font-size: 12px;
             fill: #333;
         }
+        .legend {
+            display: flex;
+            justify-content: center;
+            margin: 20px 0;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-right: 20px;
+        }
+        .legend-box {
+            width: 20px;
+            height: 20px;
+            margin-right: 8px;
+            border: 1px solid #ccc;
+        }
+        .orange-box {
+            background-color: #FF7F50;
+        }
+        .blue-box {
+            background-color: #6495ED;
+        }
     </style>
 </head>
 <body>
-    <h1>Dashboard - Milestone 3</h1>
+    <h1>White and Black Studnets Enrollment in Washington</h1>
+    <div class="legend">
+        <div class="legend-item">
+            <div class="legend-box orange-box"></div>
+            <span>White Students</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-box blue-box"></div>
+            <span>Black Students</span>
+        </div>
+    </div>
+    <div class="controls">
+        <label for="groupSelectDropdown">Current Student Selection:</label>
+        <select id="groupSelectDropdown">
+            <option value="Both">White and Black Students</option>
+            <option value="White">White Students</option>
+            <option value="Black">Black Students</option>
+        </select>
+    </div>
     <div class="chart" id="scatterPlot">
         <h2>Student Counts: White vs Black</h2>
     </div>
