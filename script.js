@@ -14,7 +14,6 @@ d3.csv("Dataset 4030.csv", d3.autoType).then(data => {
     let yCounty;
     let xScale;
     let yScale;
-    let dataScatterPlot;
 
     // Scatter Plot (White vs Black)
     const scatterContainer = d3.select("#scatterPlot");
@@ -162,7 +161,7 @@ d3.csv("Dataset 4030.csv", d3.autoType).then(data => {
         let filteredDataCounty;
 
         if (currentGrade !== "All") {
-            filteredDataCounty = data.filter(d => d.grade.includes(currentGrade));
+            filteredDataCounty = data.filter(d => d.grade === currentGrade);
         }
 
         if (currentCounty === "All") {
@@ -262,6 +261,7 @@ d3.csv("Dataset 4030.csv", d3.autoType).then(data => {
                 currentGrade = "All";
 
                 drawGradeBars(groupSelect, currentGrade, currentCounty);
+                drawCountyBars(groupSelect, currentCounty, currentGrade);
                 drawScatterPlot(data, currentCounty, currentGrade);
 
                 updateSelectionLabel(currentGrade, currentCounty);
@@ -298,6 +298,7 @@ d3.csv("Dataset 4030.csv", d3.autoType).then(data => {
                 currentGrade = "All";
 
                 drawGradeBars(groupSelect, currentGrade, currentCounty);
+                drawCountyBars(groupSelect, currentCounty, currentGrade);
                 drawScatterPlot(data, currentCounty, currentGrade);
 
                 updateSelectionLabel(currentGrade, currentCounty);
@@ -351,7 +352,7 @@ d3.csv("Dataset 4030.csv", d3.autoType).then(data => {
                 county: Array.from(new Set(values.map(d => d.county)))
             }));
         } else {
-            filteredData = (filteredData === undefined ? data : filteredData).filter(d => currentGrade.includes(d.grade));
+            filteredData = (filteredData === undefined ? data : filteredData).filter(d => currentGrade === d.grade);
 
             filteredData = Array.from(d3.group(filteredData, d => d.grade), ([key, values]) => ({
                 grade: key,
@@ -437,6 +438,7 @@ d3.csv("Dataset 4030.csv", d3.autoType).then(data => {
                 currentGrade = currentGrade === "All" ? d.grade : "All";
 
                 drawGradeBars(groupSelect, currentGrade, currentCounty);
+                drawCountyBars(groupSelect, currentCounty, currentGrade)
                 drawScatterPlot(data, currentCounty, currentGrade);
 
                 updateSelectionLabel(currentGrade, currentCounty);
@@ -473,6 +475,7 @@ d3.csv("Dataset 4030.csv", d3.autoType).then(data => {
                 currentGrade = currentGrade === "All" ? d.grade : "All";
 
                 drawGradeBars(groupSelect, currentGrade, currentCounty);
+                drawCountyBars(groupSelect, currentCounty, currentGrade)
                 drawScatterPlot(data, currentCounty, currentGrade);
 
                 updateSelectionLabel(currentGrade, currentCounty);
