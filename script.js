@@ -1,11 +1,9 @@
 // Load the CSV file
-d3.csv("Dataset 4030.csv").then(data => {
+d3.csv("Dataset 4030.csv", d3.autoType).then(data => {
 
-    data.forEach(d => {
-        d.white = +d.white;
-        d.black = +d.black;
-        d.total = +d.total;
-    });
+    data.map(d => {
+        if (d.grade.startsWith('grade')) d.grade = d.grade.substring(6);
+    })
 
     let groupSelect = "Both";
     let currentCounty = "All";
@@ -43,6 +41,11 @@ d3.csv("Dataset 4030.csv").then(data => {
         .style("text-anchor", "middle")
         .style("font-weight", "bold")
         .text("White Student Count");
+
+    d3.select('body')
+        .append('div')
+        .attr('id', 'tooltip')
+        .attr('style', 'position: absolute; opacity: 0; background-color: lightgray; border: 1px solid; padding: 4px; font-size: 12px');
   
     const drawScatterPlot = (dataScatterPlot, currentCounty, currentGrade) => {
         
@@ -95,21 +98,31 @@ d3.csv("Dataset 4030.csv").then(data => {
         .attr("opacity", 0.7)
         .on("mouseover", function(event, d) {
             d3.select(this).attr("fill", "orange");
-    
-            currentCounty = d.county;
-            currentGrade = d.grade;
-
-            drawCountyBars(groupSelect, currentCounty, currentGrade);
-            drawGradeBars(groupSelect, currentGrade, currentCounty);
+            d3.select('#tooltip').style('opacity', 1).html(`
+              <strong>Grade:</strong> ${d.grade}</br>
+              <strong>County:</strong> ${d.county}</br>
+              <strong>White Total:</strong> ${d.white}</br>
+              <strong>Black Total:</strong> ${d.black}`
+            )
         })
         .on("mouseout", function() {
             d3.select(this).attr("fill", "steelblue");
+            d3.select('#tooltip').style('opacity', 0)
+        })
+        .on('mousemove', function(event) {
+            d3.select('#tooltip')
+                .style('left', (event.pageX + 20) + 'px')
+                .style('top', (event.pageY - 20) + 'px')
+        })
+        .on("click", (event, d) => {
+            currentCounty = currentCounty === "All" ? d.county : "All";
+            currentGrade = currentGrade === "All" ? d.grade : "All";
 
-            currentCounty = "All";
-            currentGrade = "All";
-
+            drawScatterPlot(groupSelect, currentCounty, currentGrade)
             drawCountyBars(groupSelect, currentCounty, currentGrade);
             drawGradeBars(groupSelect, currentGrade, currentCounty);
+
+            updateSelectionLabel(currentGrade, currentCounty);
         });
     };
   
@@ -148,16 +161,19 @@ d3.csv("Dataset 4030.csv").then(data => {
     
         let filteredDataCounty;
 
+        if (currentGrade !== "All") {
+            filteredDataCounty = data.filter(d => d.grade.includes(currentGrade));
+        }
+
         if (currentCounty === "All") {
-            filteredDataCounty = Array.from(d3.group(data, d => d.county), ([key, values]) => ({
+            filteredDataCounty = Array.from(d3.group(filteredDataCounty === undefined ? data : filteredDataCounty, d => d.county), ([key, values]) => ({
                 county: key,
                 white: d3.sum(values, d => d.white),
                 black: d3.sum(values, d => d.black),
                 grade: Array.from(new Set(values.map(d => d.grade)))
             }));
         } else {
-            filteredDataCounty = data.filter(d => currentCounty.includes(d.county));
-            filteredDataCounty = filteredDataCounty.filter(d => d.grade.includes(currentGrade));
+            filteredDataCounty = (filteredDataCounty === undefined ? data : filteredDataCounty).filter(d => currentCounty.includes(d.county));
 
             filteredDataCounty = Array.from(d3.group(filteredDataCounty, d => d.county), ([key, values]) => ({
                 county: key,
@@ -187,6 +203,10 @@ d3.csv("Dataset 4030.csv").then(data => {
             }));
         }
 
+        filteredDataCounty.sort((a,b) => {
+            return d3.ascending(a.county, b.county)
+        })
+
         xCounty = d3.scaleBand()
         .domain(filteredDataCounty.map(d => d.county))
         .range([80, countyWidth - 60])
@@ -211,35 +231,6 @@ d3.csv("Dataset 4030.csv").then(data => {
         .attr("class", "y-axisCounty")
         .call(d3.axisLeft(yCounty));
 
-        countySvg.selectAll(".bar")
-            .data(filteredDataCounty)
-            .enter()
-            .append("rect")
-            .attr("class", "bar")
-            .attr("x", d => xCounty(d.county))
-            .attr("y", d => yCounty(d.total))
-            .attr("width", xCounty.bandwidth())
-            .attr("height", d => countyHeight - 60 - yCounty(d.total))
-            .attr("fill", (group === "White") ? "#FF7F50" : (group === "Black") ? "#6495ED" : "steelblue")
-            .on("mouseover", function(event, d) {
-                d3.select(this).style("stroke", "black").style("stroke-width", "2px");
-        
-                currentCounty = d.county;
-                currentGrade = d.grade;
-
-                drawGradeBars(groupSelect, currentGrade, currentCounty);
-                drawScatterPlot(filteredDataCounty, currentCounty, "All");
-            })
-            .on("mouseout", function() {
-                d3.select(this).style("stroke", "none");
-    
-                currentCounty = "All";
-                currentGrade = "All";
-
-                drawGradeBars(groupSelect, currentGrade, currentCounty);
-                drawScatterPlot(data, currentCounty, currentGrade);
-            });
-          
         countySvg.selectAll(".bar.white")
             .data(filteredDataCounty)
             .enter()
@@ -252,21 +243,28 @@ d3.csv("Dataset 4030.csv").then(data => {
             .attr("fill", "#FF7F50")
             .on("mouseover", function(event, d) {
                 d3.select(this).style("stroke", "black").style("stroke-width", "2px");
-        
-                currentCounty = d.county;
-                currentGrade = d.grade;
-
-                drawGradeBars(groupSelect, currentGrade, currentCounty);
-                drawScatterPlot(filteredDataCounty, currentCounty, "All");
+                d3.select('#tooltip').style('opacity', 1).html(`
+                  <strong>County:</strong> ${d.county}</br>
+                  <strong>White Total:</strong> ${d.whiteTotal.toLocaleString()}`
+                )
             })
             .on("mouseout", function() {
                 d3.select(this).style("stroke", "none");
-    
-                currentCounty = "All";
+                d3.select('#tooltip').style('opacity', 0)
+            })
+            .on('mousemove', function(event) {
+                d3.select('#tooltip')
+                    .style('left', (event.pageX + 20) + 'px')
+                    .style('top', (event.pageY - 20) + 'px')
+            })
+            .on("click", (event, d) => {
+                currentCounty = currentCounty === "All" ? d.county : "All";
                 currentGrade = "All";
 
                 drawGradeBars(groupSelect, currentGrade, currentCounty);
                 drawScatterPlot(data, currentCounty, currentGrade);
+
+                updateSelectionLabel(currentGrade, currentCounty);
             });
 
         countySvg.selectAll(".bar.black")
@@ -281,20 +279,28 @@ d3.csv("Dataset 4030.csv").then(data => {
             .attr("fill", "#6495ED")
             .on("mouseover", function(event, d) {
                 d3.select(this).style("stroke", "black").style("stroke-width", "2px");
-        
-                currentCounty = d.county;
-                currentGrade = d.grade;
-                drawGradeBars(groupSelect, currentGrade, currentCounty);
-                drawScatterPlot(filteredDataCounty, currentCounty, "All");
+                d3.select('#tooltip').style('opacity', 1).html(`
+                  <strong>County:</strong> ${d.county}</br>
+                  <strong>Black Total:</strong> ${d.blackTotal.toLocaleString()}`
+                )
             })
             .on("mouseout", function() {
                 d3.select(this).style("stroke", "none");
-    
-                currentCounty = "All";
+                d3.select('#tooltip').style('opacity', 0)
+            })
+            .on('mousemove', function(event) {
+                d3.select('#tooltip')
+                    .style('left', (event.pageX + 20) + 'px')
+                    .style('top', (event.pageY - 20) + 'px')
+            })
+            .on("click", (event, d) => {
+                currentCounty = currentCounty === "All" ? d.county : "All";
                 currentGrade = "All";
 
                 drawGradeBars(groupSelect, currentGrade, currentCounty);
                 drawScatterPlot(data, currentCounty, currentGrade);
+
+                updateSelectionLabel(currentGrade, currentCounty);
             });
     };
     
@@ -304,6 +310,7 @@ d3.csv("Dataset 4030.csv").then(data => {
     const gradeContainer = d3.select("#gradeBarChart");
     const gradeWidth = gradeContainer.node().getBoundingClientRect().width;
     const gradeHeight = 550;
+    const gradeSort = ["pre_kindergarten", "kindergarten_half_day", "kindergarten", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"]
   
     const gradeSvg = gradeContainer.append("svg")
         .attr("width", gradeWidth)
@@ -332,16 +339,19 @@ d3.csv("Dataset 4030.csv").then(data => {
         gradeSvg.selectAll(".y-axisGrade").remove();
         
         let filteredData;
+        if (currentCounty !== "All") {
+            filteredData = data.filter(d => d.county.includes(currentCounty));
+        }
+
         if (currentGrade === "All") {
-            filteredData = Array.from(d3.group(data, d => d.grade), ([key, values]) => ({
+            filteredData = Array.from(d3.group(filteredData === undefined ? data : filteredData, d => d.grade), ([key, values]) => ({
                 grade: key,
                 black: d3.sum(values, d => d.black),
                 white: d3.sum(values, d => d.white),
                 county: Array.from(new Set(values.map(d => d.county)))
             }));
         } else {
-            filteredData = data.filter(d => currentGrade.includes(d.grade));
-            filteredData = filteredData.filter(d => d.county.includes(currentCounty));
+            filteredData = (filteredData === undefined ? data : filteredData).filter(d => currentGrade.includes(d.grade));
 
             filteredData = Array.from(d3.group(filteredData, d => d.grade), ([key, values]) => ({
                 grade: key,
@@ -370,6 +380,10 @@ d3.csv("Dataset 4030.csv").then(data => {
             }));
         }
 
+        filteredData.sort(function(a, b){
+            return gradeSort.indexOf(a.grade) - gradeSort.indexOf(b.grade);
+        });
+
         xGrade = d3.scaleBand()
         .domain(filteredData.map(d => d.grade))
         .range([80, gradeWidth - 60])
@@ -391,35 +405,6 @@ d3.csv("Dataset 4030.csv").then(data => {
         .attr("transform", "translate(80, 0)")
         .attr("class", "y-axisGrade")
         .call(d3.axisLeft(yGrade));
-    
-        gradeSvg.selectAll(".bar")
-            .data(filteredData)
-            .enter()
-            .append("rect")
-            .attr("class", "bar")
-            .attr("x", d => xGrade(d.grade))
-            .attr("y", d => yGrade(d.total))
-            .attr("width", xGrade.bandwidth())
-            .attr("height", d => gradeHeight - 60 - yGrade(d.total))
-            .attr("fill", (group === "White") ? "#FF7F50" : (group === "Black") ? "#6495ED" : "steelblue")
-            .on("mouseover", function(event, d) {
-                d3.select(this).style("stroke", "black").style("stroke-width", "2px");
-        
-                currentCounty = d.county;
-                currentGrade = d.grade;
-
-                drawCountyBars(groupSelect, currentCounty, currentGrade);
-                drawScatterPlot(filteredData, "All", currentGrade);
-            })
-            .on("mouseout", function() {
-                d3.select(this).style("stroke", "none");
-    
-                currentCounty = "All";
-                currentGrade = "All";
-
-                drawCountyBars(groupSelect, currentCounty, currentGrade);
-                drawScatterPlot(data, currentCounty, currentGrade);
-            });
 
         gradeSvg.selectAll(".bar.white")
             .data(filteredData)
@@ -433,21 +418,28 @@ d3.csv("Dataset 4030.csv").then(data => {
             .attr("fill", "#FF7F50")
             .on("mouseover", function(event, d) {
                 d3.select(this).style("stroke", "black").style("stroke-width", "2px");
-        
-                currentCounty = d.county;
-                currentGrade = d.grade;
-        
-                drawCountyBars(groupSelect, currentCounty, currentGrade);
-                drawScatterPlot(filteredData, "All", currentGrade);
+                d3.select('#tooltip').style('opacity', 1).html(`
+                  <strong>Grade:</strong> ${d.grade}</br>
+                  <strong>White Total:</strong> ${d.whiteTotal.toLocaleString()}`
+                )
             })
             .on("mouseout", function() {
                 d3.select(this).style("stroke", "none");
-    
+                d3.select('#tooltip').style('opacity', 0)
+            })
+            .on('mousemove', function(event) {
+                d3.select('#tooltip')
+                    .style('left', (event.pageX + 20) + 'px')
+                    .style('top', (event.pageY - 20) + 'px')
+            })
+            .on("click", (event, d) => {
                 currentCounty = "All";
-                currentGrade = "All";
+                currentGrade = currentGrade === "All" ? d.grade : "All";
 
-                drawCountyBars(groupSelect, currentCounty, currentGrade);
+                drawGradeBars(groupSelect, currentGrade, currentCounty);
                 drawScatterPlot(data, currentCounty, currentGrade);
+
+                updateSelectionLabel(currentGrade, currentCounty);
             });
     
         gradeSvg.selectAll(".bar.black")
@@ -462,21 +454,28 @@ d3.csv("Dataset 4030.csv").then(data => {
             .attr("fill", "#6495ED")
             .on("mouseover", function(event, d) {
                 d3.select(this).style("stroke", "black").style("stroke-width", "2px");
-        
-                currentCounty = d.county;
-                currentGrade = d.grade;
-
-                drawCountyBars(groupSelect, currentCounty, currentGrade);
-                drawScatterPlot(filteredData, "All", currentGrade);
+                d3.select('#tooltip').style('opacity', 1).html(`
+                  <strong>Grade:</strong> ${d.grade}</br>
+                  <strong>Black Total:</strong> ${d.blackTotal.toLocaleString()}`
+                )
             })
             .on("mouseout", function() {
                 d3.select(this).style("stroke", "none");
-    
+                d3.select('#tooltip').style('opacity', 0)
+            })
+            .on('mousemove', function(event) {
+                d3.select('#tooltip')
+                    .style('left', (event.pageX + 20) + 'px')
+                    .style('top', (event.pageY - 20) + 'px')
+            })
+            .on("click", (event, d) => {
                 currentCounty = "All";
-                currentGrade = "All";
+                currentGrade = currentGrade === "All" ? d.grade : "All";
 
-                drawCountyBars(groupSelect, currentCounty, currentGrade);
+                drawGradeBars(groupSelect, currentGrade, currentCounty);
                 drawScatterPlot(data, currentCounty, currentGrade);
+
+                updateSelectionLabel(currentGrade, currentCounty);
             });
     };
 
@@ -489,6 +488,11 @@ d3.csv("Dataset 4030.csv").then(data => {
         drawScatterPlot(data, currentCounty, currentGrade);
 
     });
+
+    const updateSelectionLabel = (selectedGrade, selectedCounty) => {
+        document.getElementById("selectedGrade").innerText = `Selected Grade: ${selectedGrade}`
+        document.getElementById("selectedCounty").innerText = `Selected County: ${selectedCounty}`
+    }
 
   });
   
