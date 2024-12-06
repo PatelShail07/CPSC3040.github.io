@@ -1,11 +1,9 @@
 // Load the CSV file
-d3.csv("Dataset 4030.csv").then(data => {
+d3.csv("Dataset 4030.csv", d3.autoType).then(data => {
 
-    data.forEach(d => {
-        d.white = +d.white;
-        d.black = +d.black;
-        d.total = +d.total;
-    });
+    data.map(d => {
+        if (d.grade.startsWith('grade')) d.grade = d.grade.substring(6);
+    })
 
     let groupSelect = "Both";
     let currentCounty = "All";
@@ -16,7 +14,6 @@ d3.csv("Dataset 4030.csv").then(data => {
     let yCounty;
     let xScale;
     let yScale;
-    let dataScatterPlot;
 
     // Scatter Plot (White vs Black)
     const scatterContainer = d3.select("#scatterPlot");
@@ -43,6 +40,11 @@ d3.csv("Dataset 4030.csv").then(data => {
         .style("text-anchor", "middle")
         .style("font-weight", "bold")
         .text("White Student Count");
+
+    d3.select('body')
+        .append('div')
+        .attr('id', 'tooltip')
+        .attr('style', 'position: absolute; opacity: 0; background-color: lightgray; border: 1px solid; padding: 4px; font-size: 12px');
   
     const drawScatterPlot = (dataScatterPlot, currentCounty, currentGrade) => {
         
@@ -66,11 +68,11 @@ d3.csv("Dataset 4030.csv").then(data => {
         scatterSvg.selectAll(".y-axisScatter").remove();
 
         xScale = d3.scaleLinear()
-        .domain([0, d3.max(dataScatterPlot, d => d.black)])
+        .domain([0, d3.max(data, d => d.black)])
         .range([60, scatterWidth - 60]); 
   
         yScale = d3.scaleLinear()
-        .domain([0, d3.max(dataScatterPlot, d => d.white)])
+        .domain([0, d3.max(data, d => d.white)])
         .range([scatterHeight - 60, 60]);
   
         scatterSvg.append("g")
@@ -95,21 +97,31 @@ d3.csv("Dataset 4030.csv").then(data => {
         .attr("opacity", 0.7)
         .on("mouseover", function(event, d) {
             d3.select(this).attr("fill", "orange");
-    
-            currentCounty = d.county;
-            currentGrade = d.grade;
-
-            drawCountyBars(groupSelect, currentCounty, currentGrade);
-            drawGradeBars(groupSelect, currentGrade, currentCounty);
+            d3.select('#tooltip').style('opacity', 1).html(`
+              <strong>Grade:</strong> ${d.grade}</br>
+              <strong>County:</strong> ${d.county}</br>
+              <strong>White Total:</strong> ${d.white}</br>
+              <strong>Black Total:</strong> ${d.black}`
+            )
         })
         .on("mouseout", function() {
             d3.select(this).attr("fill", "steelblue");
+            d3.select('#tooltip').style('opacity', 0)
+        })
+        .on('mousemove', function(event) {
+            d3.select('#tooltip')
+                .style('left', (event.pageX + 20) + 'px')
+                .style('top', (event.pageY - 20) + 'px')
+        })
+        .on("click", (event, d) => {
+            currentCounty = currentCounty === "All" ? d.county : "All";
+            currentGrade = currentGrade === "All" ? d.grade : "All";
 
-            currentCounty = "All";
-            currentGrade = "All";
-
+            drawScatterPlot(groupSelect, currentCounty, currentGrade)
             drawCountyBars(groupSelect, currentCounty, currentGrade);
             drawGradeBars(groupSelect, currentGrade, currentCounty);
+
+            updateSelectionLabel(currentGrade, currentCounty);
         });
     };
   
@@ -148,16 +160,19 @@ d3.csv("Dataset 4030.csv").then(data => {
     
         let filteredDataCounty;
 
+        if (currentGrade !== "All") {
+            filteredDataCounty = data.filter(d => d.grade === currentGrade);
+        }
+
         if (currentCounty === "All") {
-            filteredDataCounty = Array.from(d3.group(data, d => d.county), ([key, values]) => ({
+            filteredDataCounty = Array.from(d3.group(filteredDataCounty === undefined ? data : filteredDataCounty, d => d.county), ([key, values]) => ({
                 county: key,
                 white: d3.sum(values, d => d.white),
                 black: d3.sum(values, d => d.black),
                 grade: Array.from(new Set(values.map(d => d.grade)))
             }));
         } else {
-            filteredDataCounty = data.filter(d => currentCounty.includes(d.county));
-            filteredDataCounty = filteredDataCounty.filter(d => d.grade.includes(currentGrade));
+            filteredDataCounty = (filteredDataCounty === undefined ? data : filteredDataCounty).filter(d => currentCounty.includes(d.county));
 
             filteredDataCounty = Array.from(d3.group(filteredDataCounty, d => d.county), ([key, values]) => ({
                 county: key,
@@ -187,13 +202,17 @@ d3.csv("Dataset 4030.csv").then(data => {
             }));
         }
 
+        filteredDataCounty.sort((a,b) => {
+            return d3.ascending(a.county, b.county)
+        })
+
         xCounty = d3.scaleBand()
         .domain(filteredDataCounty.map(d => d.county))
         .range([80, countyWidth - 60])
         .padding(0.2);
 
         yCounty = d3.scaleLinear()
-        .domain([0, d3.max(filteredDataCounty, d => d.black + d.white)])
+        .domain([0, d3.max(filteredDataCounty, d => d.total === undefined ? d.black + d.white : d.total)])
         .range([countyHeight - 60, 60]);
 
         countySvg.append("g")
@@ -239,7 +258,7 @@ d3.csv("Dataset 4030.csv").then(data => {
                 drawGradeBars(groupSelect, currentGrade, currentCounty);
                 drawScatterPlot(data, currentCounty, currentGrade);
             });
-          
+
         countySvg.selectAll(".bar.white")
             .data(filteredDataCounty)
             .enter()
@@ -304,6 +323,7 @@ d3.csv("Dataset 4030.csv").then(data => {
     const gradeContainer = d3.select("#gradeBarChart");
     const gradeWidth = gradeContainer.node().getBoundingClientRect().width;
     const gradeHeight = 550;
+    const gradeSort = ["pre_kindergarten", "kindergarten_half_day", "kindergarten", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"]
   
     const gradeSvg = gradeContainer.append("svg")
         .attr("width", gradeWidth)
@@ -332,16 +352,19 @@ d3.csv("Dataset 4030.csv").then(data => {
         gradeSvg.selectAll(".y-axisGrade").remove();
         
         let filteredData;
+        if (currentCounty !== "All") {
+            filteredData = data.filter(d => d.county.includes(currentCounty));
+        }
+
         if (currentGrade === "All") {
-            filteredData = Array.from(d3.group(data, d => d.grade), ([key, values]) => ({
+            filteredData = Array.from(d3.group(filteredData === undefined ? data : filteredData, d => d.grade), ([key, values]) => ({
                 grade: key,
                 black: d3.sum(values, d => d.black),
                 white: d3.sum(values, d => d.white),
                 county: Array.from(new Set(values.map(d => d.county)))
             }));
         } else {
-            filteredData = data.filter(d => currentGrade.includes(d.grade));
-            filteredData = filteredData.filter(d => d.county.includes(currentCounty));
+            filteredData = (filteredData === undefined ? data : filteredData).filter(d => currentGrade === d.grade);
 
             filteredData = Array.from(d3.group(filteredData, d => d.grade), ([key, values]) => ({
                 grade: key,
@@ -370,13 +393,17 @@ d3.csv("Dataset 4030.csv").then(data => {
             }));
         }
 
+        filteredData.sort(function(a, b){
+            return gradeSort.indexOf(a.grade) - gradeSort.indexOf(b.grade);
+        });
+
         xGrade = d3.scaleBand()
         .domain(filteredData.map(d => d.grade))
         .range([80, gradeWidth - 60])
         .padding(0.1);
   
         yGrade = d3.scaleLinear()
-        .domain([0, d3.max(filteredData, d => d.black + d.white)])
+        .domain([0, d3.max(filteredData, d => d.total === undefined ? d.black + d.white : d.total)])
         .range([gradeHeight - 60, 60]);
 
         gradeSvg.append("g")
@@ -391,7 +418,7 @@ d3.csv("Dataset 4030.csv").then(data => {
         .attr("transform", "translate(80, 0)")
         .attr("class", "y-axisGrade")
         .call(d3.axisLeft(yGrade));
-    
+
         gradeSvg.selectAll(".bar")
             .data(filteredData)
             .enter()
@@ -489,6 +516,11 @@ d3.csv("Dataset 4030.csv").then(data => {
         drawScatterPlot(data, currentCounty, currentGrade);
 
     });
+
+    const updateSelectionLabel = (selectedGrade, selectedCounty) => {
+        document.getElementById("selectedGrade").innerText = `Selected Grade: ${selectedGrade}`
+        document.getElementById("selectedCounty").innerText = `Selected County: ${selectedCounty}`
+    }
 
   });
   
