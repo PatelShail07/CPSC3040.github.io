@@ -608,4 +608,9 @@ d3.csv("Dataset 4030.csv", d3.autoType).then(data => {
     }
 
   });
-  
+
+function scrollToVideo() {
+    document.getElementById("video").scrollIntoView({
+        behavior: "smooth"
+    })
+}

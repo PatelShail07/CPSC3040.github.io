@@ -72,6 +72,10 @@
             <span>Black Students</span>
         </div>
     </div>
+    <div id="video-link-container" style="display: flex; justify-content: center">
+        <button id="video-link" onclick="scrollToVideo()">Jump to Screencast
+        </button>
+    </div>
     <div id="selections">
         <span id="selectedGrade" class="selection-label">Selected Grade: </span>
         <span id="selectedCounty" class="selection-label">Selected County: </span>
@@ -95,5 +99,10 @@
     </div>
 
     <script src="script.js"></script>
+    <hr style="margin-top: 50px">
+    <a id="video"></a>
+    <video width="100%" controls muted>
+        <source src="screencast.mov">
+    </video>
 </body>
 </html>
